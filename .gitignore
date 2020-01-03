@@ -1,0 +1,14 @@
+.pypirc
+*/.pypirc
+*.pyc
+.sync/*
+*/env/*
+*/.env
+*/id_rsa
+*/__pycache__/*
+deployment/*.zip
+deployment/test_event.json
+*.egg-info/*
+*/dist/*
+.vscode/*
+*/*.log

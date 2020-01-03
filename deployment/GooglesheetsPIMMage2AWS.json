@@ -1,0 +1,226 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Resources": {
+    "GooglesheetsPIMMage2ExecRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "RoleName": "googlesheetspimmage2_exec",
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "googlesheetspimmage2_exec_policy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "arn:aws:logs:*:*:*",
+                  "Effect": "Allow"
+                },
+                {
+                  "Action": [
+                    "sqs:*",
+                    "dynamodb:*",
+                    "cloudwatch:*",
+                    "iam:ListRoles",
+                    "sns:*",
+                    "lambda:*",
+                    "ec2:*"
+                  ],
+                  "Resource": "*",
+                  "Effect": "Allow"
+                },
+                {
+                  "Action": [
+                    "iam:ListRoles",
+                    "iam:ListOpenIdConnectProviders",
+                    "sns:ListPlatformApplications"
+                  ],
+                  "Resource": "*",
+                  "Effect": "Allow"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "GoogleSheetsPIMMage2LogSNSTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "Subscription": [],
+        "TopicName": "googlesheets_pim_mage2_log"
+      }
+    },
+    "SyncProductsDataTask": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "syncproductsdata_task",
+        "Handler": "tasks.handler",
+        "Layers": [
+          { "Ref" : "GooglesheetsPIMMage2Layer" }
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "GooglesheetsPIMMage2ExecRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": null,
+          "S3Key": "syncproductsdata_task.zip"
+        },
+        "Runtime": "python3.7",
+        "Timeout": "900",
+        "MemorySize": "1792",
+        "Environment": {
+          "Variables": {
+            "LOGGINGLEVEL": "logging.INFO",
+            "SYNCPRODUCTSDATAMAGE2TASKARN": {"Fn::GetAtt": ["SyncProductsDataMage2Task", "Arn"]},
+            "SNSTOPICARN": {
+              "Fn::Sub": "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:googlesheets_pim_mage2_log"
+            },
+            "TIMEINTERVAL": "0"
+          }
+        }
+      },
+      "DependsOn": [
+        "GooglesheetsPIMMage2ExecRole"
+      ]
+    },
+    "SyncProductsDataMage2Task": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "syncproductsdatamage2_task",
+        "Handler": "tasks.handler",
+        "Layers": [
+          { "Ref" : "GooglesheetsPIMMage2Layer" }
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "GooglesheetsPIMMage2ExecRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": null,
+          "S3Key": "syncproductsdatamage2_task.zip"
+        },
+        "Runtime": "python3.7",
+        "Timeout": "900",
+        "MemorySize": "1792",
+        "Environment": {
+          "Variables": {
+            "LOGGINGLEVEL": "logging.INFO",
+            "SNSTOPICARN": {
+              "Fn::Sub": "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:googlesheets_pim_mage2_log"
+            },
+            "TIMEINTERVAL": "0"
+          }
+        }
+      },
+      "DependsOn": [
+        "GooglesheetsPIMMage2ExecRole"
+      ]
+    },
+    "GooglesheetsPIMMage2Layer": {
+      "Type": "AWS::Lambda::LayerVersion",
+      "Properties": {
+        "CompatibleRuntimes": [
+          "python3.6",
+          "python3.7"
+        ],
+        "Content": {
+          "S3Bucket": null,
+          "S3Key": "googlesheets_pim_mage2_layer.zip"
+        },
+        "Description": "Googlesheets PIM Mage2 Layer",
+        "LayerName": "googlesheets_pim_mage2_layer",
+        "LicenseInfo": "MIT"
+      }
+    },
+    "STGProducts": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "stg_products",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "id",
+            "AttributeType": "N"
+          },
+          {
+            "AttributeName": "source",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "updated_at",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "sku",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "id",
+            "KeyType": "HASH"
+          }
+        ],
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "updated_at_index",
+            "KeySchema": [
+              {
+                "AttributeName": "source",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "updated_at",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "NonKeyAttributes": [],
+              "ProjectionType": "ALL"
+            }
+          },
+          {
+            "IndexName": "sku_index",
+            "KeySchema": [
+              {
+                "AttributeName": "sku",
+                "KeyType": "HASH"
+              }
+            ],
+            "Projection": {
+              "NonKeyAttributes": [],
+              "ProjectionType": "ALL"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

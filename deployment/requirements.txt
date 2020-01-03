@@ -1,0 +1,6 @@
+boto3
+python-dotenv
+requests
+AWS-Mage2Connector
+pymysql
+sshtunnel
