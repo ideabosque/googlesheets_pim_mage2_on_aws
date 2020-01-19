@@ -255,3 +255,5 @@ txmap = {
 ```bash
 python ./command/products_data_sync_mage2_from_googlesheets.py
 ```
+
+Feel free to [create a GitHub issue](https://github.com/ideabosque/googlesheets_pim_mage2_on_aws/issues/new) or [send us an email](mailto:ideabosque@gmail.com) for support regarding this application.
